@@ -109,21 +109,21 @@ def page_dashboard():
         display_logo()
 
     df_budg, df_aum = load_data()
-    st.subheader("🔹 Committed & Disbursement vs Budget (Cumulative)")
+    st.subheader("🔹 Committed & Disbursement vs Budget (Cumulative) BRLmn")
     c1, c2 = st.columns(2)
     with c1:
-        bar_compare(df_aum, "Committed", "Committed FY25 (Cumulative)", key="dash_committed", cumulative=True)
+        bar_compare(df_aum, "Committed", "Committed FY25 (Cumulative) BRLmn", key="dash_committed", cumulative=True)
     with c2:
-        bar_compare(df_aum, "Disbursement", "Disbursement FY25 (Cumulative)", key="dash_disbursement", cumulative=True)
+        bar_compare(df_aum, "Disbursement", "Disbursement FY25 (Cumulative) BRLmn", key="dash_disbursement", cumulative=True)
     
     st.subheader("🔹 AuM at the EoP vs Budget")
     bar_compare(df_aum, "AuM at the EoP", "AuM at the EoP FY25", key="dash_aum")
-    st.subheader("🔹 Revenues & Profit Before Tax vs Budget")
+    st.subheader("🔹 Revenues & Profit Before Tax vs Budget BRLmn")
     c5, c6 = st.columns(2)
     with c5:
-        bar_compare(df_budg, "Revenues - Net of ECL", "Revenues FY25", key="dash_revenues")
+        bar_compare(df_budg, "Revenues - Net of ECL BRLmn", "Revenues FY25", key="dash_revenues")
     with c6:
-        bar_compare(df_budg, "PROFIT BEFORE TAX", "Profit Before Tax FY25", key="dash_pbt")
+        bar_compare(df_budg, "PROFIT BEFORE TAX BRLmn", "Profit Before Tax FY25", key="dash_pbt")
 
 def page_okrs():
     col1, col2 = st.columns([4, 1])
