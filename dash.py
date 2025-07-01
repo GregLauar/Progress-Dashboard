@@ -116,7 +116,7 @@ def page_dashboard():
     with c2:
         bar_compare(df_aum, "Disbursement", "Disbursement FY25 (Cumulative)", key="dash_disbursement", cumulative=True)
     
-    st.subheader("🔹 AuM at the EoP vs Budget")
+    st.subheader("🔹 AuM at the EoP vs Budget BRLmn")
     bar_compare(df_aum, "AuM at the EoP", "AuM at the EoP FY25", key="dash_aum")
     st.subheader("🔹 Revenues & Profit Before Tax vs Budget (BRLmn)")
     c5, c6 = st.columns(2)
