@@ -112,18 +112,18 @@ def page_dashboard():
     st.subheader("🔹 Committed & Disbursement vs Budget (Cumulative) BRLmn")
     c1, c2 = st.columns(2)
     with c1:
-        bar_compare(df_aum, "Committed", "Committed FY25 (Cumulative) BRLmn", key="dash_committed", cumulative=True)
+        bar_compare(df_aum, "Committed", "Committed FY25 (Cumulative)", key="dash_committed", cumulative=True)
     with c2:
-        bar_compare(df_aum, "Disbursement", "Disbursement FY25 (Cumulative) BRLmn", key="dash_disbursement", cumulative=True)
+        bar_compare(df_aum, "Disbursement", "Disbursement FY25 (Cumulative)", key="dash_disbursement", cumulative=True)
     
     st.subheader("🔹 AuM at the EoP vs Budget")
     bar_compare(df_aum, "AuM at the EoP", "AuM at the EoP FY25", key="dash_aum")
-    st.subheader("🔹 Revenues & Profit Before Tax vs Budget BRLmn")
+    st.subheader("🔹 Revenues & Profit Before Tax vs Budget (BRLmn)")
     c5, c6 = st.columns(2)
     with c5:
-        bar_compare(df_budg, "Revenues - Net of ECL BRLmn", "Revenues FY25", key="dash_revenues")
+        bar_compare(df_budg, "Revenues - Net of ECL", "Revenues FY25", key="dash_revenues")
     with c6:
-        bar_compare(df_budg, "PROFIT BEFORE TAX BRLmn", "Profit Before Tax FY25", key="dash_pbt")
+        bar_compare(df_budg, "PROFIT BEFORE TAX", "Profit Before Tax FY25", key="dash_pbt")
 
 def page_okrs():
     col1, col2 = st.columns([4, 1])
@@ -224,11 +224,11 @@ def page_tv_mode():
     df_budg, df_aum = load_data()
     df_okrs = load_okrs()
     views = []
-    views.append({'type': 'chart', 'title': 'Budget: Committed vs Budget (Cumulative)', 'params': {'df': df_aum, 'categoria': 'Committed', 'cumulative': True}})
-    views.append({'type': 'chart', 'title': 'Budget: Disbursement vs Budget (Cumulative)', 'params': {'df': df_aum, 'categoria': 'Disbursement', 'cumulative': True}})
-    views.append({'type': 'chart', 'title': 'Budget: AuM at the EoP vs Budget', 'params': {'df': df_aum, 'categoria': 'AuM at the EoP'}})
-    views.append({'type': 'chart', 'title': 'Budget: Revenues - Net of ECL vs Budget', 'params': {'df': df_budg, 'categoria': 'Revenues - Net of ECL'}})
-    views.append({'type': 'chart', 'title': 'Budget: PROFIT BEFORE TAX vs Budget', 'params': {'df': df_budg, 'categoria': 'PROFIT BEFORE TAX'}})
+    views.append({'type': 'chart', 'title': 'Budget: Committed vs Budget (Cumulative) BRLmn', 'params': {'df': df_aum, 'categoria': 'Committed', 'cumulative': True}})
+    views.append({'type': 'chart', 'title': 'Budget: Disbursement vs Budget (Cumulative) BRLmn', 'params': {'df': df_aum, 'categoria': 'Disbursement', 'cumulative': True}})
+    views.append({'type': 'chart', 'title': 'Budget: AuM at the EoP vs Budget BRLmn', 'params': {'df': df_aum, 'categoria': 'AuM at the EoP'}})
+    views.append({'type': 'chart', 'title': 'Budget: Revenues - Net of ECL vs Budget BRLmn', 'params': {'df': df_budg, 'categoria': 'Revenues - Net of ECL'}})
+    views.append({'type': 'chart', 'title': 'Budget: PROFIT BEFORE TAX vs Budget BRLmn', 'params': {'df': df_budg, 'categoria': 'PROFIT BEFORE TAX'}})
     views.append({'type': 'okr_summary', 'title': 'Overall OKR Summary', 'params': {'df_okrs': df_okrs}})
         
     if 'view_index' not in st.session_state:
