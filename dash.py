@@ -118,7 +118,7 @@ def page_dashboard():
     
     st.subheader("🔹 AuM at the EoP vs Budget BRLmn")
     bar_compare(df_aum, "AuM at the EoP", "AuM at the EoP FY25", key="dash_aum")
-    st.subheader("🔹 Revenues & Profit Before Tax vs Budget (BRLmn)")
+    st.subheader("🔹 Revenues & Profit Before Tax vs Budget BRLmn")
     c5, c6 = st.columns(2)
     with c5:
         bar_compare(df_budg, "Revenues - Net of ECL", "Revenues FY25", key="dash_revenues")
