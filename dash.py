@@ -11,11 +11,11 @@ from io import BytesIO
 st.set_page_config(layout="wide", page_title="Dashboard Budget", initial_sidebar_state="auto")
 
 # === CONFIGURATIONS ===
+# The script now expects data files to be inside a subfolder named "data_base".
 DATA_FOLDER = "data_base"
 BUDGET_FILE = "budget_base_tabular.xlsx"
 AUM_FILE    = "budget_aum_tabular_novo_approach.xlsx"
-OKRS_FILE = "okrs.xlsx"
-LOGO_FILE = "logo.png"
+LOGO_FILE = "logo.png" # The logo should be in the main folder, along with the script.
 
 START = datetime(2025, 4, 1)
 END   = datetime(2026, 3, 31)
@@ -23,19 +23,20 @@ END   = datetime(2026, 3, 31)
 # === DATA LOADING FUNCTIONS (CACHE) ===
 @st.cache_data
 def load_data():
+    # Paths are adjusted to use the 'data_base' subfolder.
     df_budg = pd.read_excel(f"{DATA_FOLDER}/{BUDGET_FILE}")
     df_aum  = pd.read_excel(f"{DATA_FOLDER}/{AUM_FILE}")
     df_budg['Data'] = pd.to_datetime(df_budg['Data'])
     df_aum['Data'] = pd.to_datetime(df_aum['Data'])
     df_budg = df_budg[(df_budg["Data"] >= START) & (df_budg["Data"] <= END)]
     df_aum  = df_aum[(df_aum["Data"] >= START) & (df_aum["Data"] <= END)]
+    
+    aum_mask = df_aum["Categoria"] == "AuM at the EoP"
+    df_aum.loc[aum_mask, ["Budget", "Actual/Est"]] *= 1000000
+
     mask = df_aum["Categoria"] == "Disbursement"
     df_aum.loc[mask, ["Budget", "Actual/Est"]] *= -1
     return df_budg, df_aum
-
-@st.cache_data
-def load_okrs():
-    return pd.read_excel(f"{DATA_FOLDER}/{OKRS_FILE}")
 
 def display_logo(width=150):
     """Tries to load and display the logo, resizing it."""
@@ -49,6 +50,14 @@ def display_logo(width=150):
         st.warning(f"Logo file '{LOGO_FILE}' not found. Please place it in the same folder as the script.")
 
 # === VISUALIZATION FUNCTIONS ===
+def format_number(num):
+    """Formats a number into a compact string (e.g., 1.5M, 500K)."""
+    if abs(num) >= 1_000_000:
+        return f'{num / 1_000_000:.1f}M'
+    if abs(num) >= 1_000:
+        return f'{num / 1_000:.0f}K'
+    return f'{num:.0f}'
+
 def bar_compare(df, categoria, title="", key=None, cumulative=False):
     d = df[df["Categoria"] == categoria].copy()
     budget_data = d.groupby('Data')['Budget'].sum().sort_index()
@@ -61,41 +70,30 @@ def bar_compare(df, categoria, title="", key=None, cumulative=False):
         forecast_data = forecast_data.cumsum()
 
     fig = go.Figure()
+    
     if not actual_data.empty:
-        fig.add_trace(go.Bar(x=actual_data.index, y=actual_data, name="Actual", marker_color="steelblue"))
+        actual_text = [format_number(x) for x in actual_data]
+        fig.add_trace(go.Bar(x=actual_data.index, y=actual_data, name="Actual", marker_color="steelblue", text=actual_text, textposition='inside'))
+    
     if not forecast_data.empty:
-        fig.add_trace(go.Bar(x=forecast_data.index, y=forecast_data, name="Forecast", marker_color="lightblue"))
+        forecast_text = [format_number(x) for x in forecast_data]
+        fig.add_trace(go.Bar(x=forecast_data.index, y=forecast_data, name="Forecast", marker_color="lightblue", text=forecast_text, textposition='inside'))
+    
     if not budget_data.empty:
         fig.add_trace(go.Scatter(x=budget_data.index, y=budget_data, mode="lines", name="Budget", line=dict(color="black", width=2, dash="dash")))
-    fig.update_layout(title=title, barmode="overlay", xaxis_title="Month", yaxis_title="Value", xaxis=dict(tickformat="%b/%y"), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    
+    fig.update_layout(
+        title=title, 
+        barmode="overlay", 
+        xaxis_title="", 
+        yaxis_title="", 
+        xaxis=dict(tickformat="%b/%y"), 
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    
+    # <<< MUDANÇA: O seletor garante que o estilo de texto seja aplicado APENAS aos gráficos de barra. >>>
+    fig.update_traces(textangle=0, insidetextanchor='middle', textfont=dict(color='white', size=14), selector=dict(type='bar'))
     st.plotly_chart(fig, use_container_width=True, key=key)
-
-def display_okr_view(okr_data):
-    """Displays a single OKR with a metric and progress bars (detailed view)."""
-    st.metric(label="Overall Average Progress", value=f"{okr_data['average']:.0%}")
-    st.progress(okr_data['average'])
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    children = okr_data['children'].copy()
-    for _, row in children.iterrows():
-        kr_name = row["Key Result"]
-        kr_progress = row["Progress"]
-        st.markdown(f"**{kr_name}**")
-        st.progress(kr_progress, text=f"{kr_progress:.0%}")
-
-def display_okr_summary_view(df_okrs):
-    """Displays a summary of all OKRs with progress bars."""
-    st.markdown("---")
-    avg_df = (df_okrs.groupby("Objectives")["Current"].mean().reset_index())
-
-    for _, row in avg_df.iterrows():
-        obj = row["Objectives"]
-        avg = row["Current"]
-        
-        st.markdown(f"<h5>{obj}</h5>", unsafe_allow_html=True)
-        st.progress(avg, text=f"{avg:.0%}")
-        st.markdown("<br>", unsafe_allow_html=True)
 
 # ===================================================================
 # INTERACTIVE MODE PAGES
@@ -109,44 +107,16 @@ def page_dashboard():
         display_logo()
 
     df_budg, df_aum = load_data()
-    st.subheader("🔹 Committed & Disbursement vs Budget (Cumulative) BRLmn")
-    c1, c2 = st.columns(2)
-    with c1:
-        bar_compare(df_aum, "Committed", "Committed FY25 (Cumulative)", key="dash_committed", cumulative=True)
-    with c2:
-        bar_compare(df_aum, "Disbursement", "Disbursement FY25 (Cumulative)", key="dash_disbursement", cumulative=True)
     
-    st.subheader("🔹 AuM at the EoP vs Budget BRLmn")
-    bar_compare(df_aum, "AuM at the EoP", "AuM at the EoP FY25", key="dash_aum")
-    st.subheader("🔹 Revenues & Profit Before Tax vs Budget BRLmn")
+    st.subheader("🔹 Balance Sheet Statistics")
+    bar_compare(df_aum, "AuM at the EoP", "AuM (BRL)", key="dash_aum")
+    
+    st.subheader("🔹 Income Statement Statistics")
     c5, c6 = st.columns(2)
     with c5:
-        bar_compare(df_budg, "Revenues - Net of ECL", "Revenues FY25", key="dash_revenues")
+        bar_compare(df_budg, "Revenues - Net of ECL", "Revenues (BRL)", key="dash_revenues")
     with c6:
-        bar_compare(df_budg, "PROFIT BEFORE TAX", "Profit Before Tax FY25", key="dash_pbt")
-
-def page_okrs():
-    col1, col2 = st.columns([4, 1])
-    with col1:
-        st.title("🎯 OKRs FY25")
-    with col2:
-        display_logo()
-        
-    df_okrs = load_okrs()
-    avg_df = (df_okrs.groupby("Objectives")["Current"].mean().reset_index())
-    
-    st.markdown("Click on an objective to expand and see the Key Results details.")
-    st.markdown("---")
-
-    for _, row in avg_df.iterrows():
-        obj = row["Objectives"]
-        avg = row["Current"]
-        
-        with st.expander(f"**{obj}** (Progress: {avg:.0%})", expanded=False):
-            display_okr_view({
-                'average': avg, 
-                'children': df_okrs[df_okrs["Objectives"] == obj][["Child Items", "Current"]].rename(columns={"Child Items": "Key Result", "Current": "Progress"})
-            })
+        bar_compare(df_budg, "PROFIT BEFORE TAX", "Profit (BRL)", key="dash_pbt")
 
 # ===================================================================
 # "TV MODE" PAGE (IMMERSIVE VERSION)
@@ -222,14 +192,11 @@ def page_tv_mode():
 
     DELAY = 15 
     df_budg, df_aum = load_data()
-    df_okrs = load_okrs()
+    
     views = []
-    views.append({'type': 'chart', 'title': 'Budget: Committed vs Budget (Cumulative) BRLmn', 'params': {'df': df_aum, 'categoria': 'Committed', 'cumulative': True}})
-    views.append({'type': 'chart', 'title': 'Budget: Disbursement vs Budget (Cumulative) BRLmn', 'params': {'df': df_aum, 'categoria': 'Disbursement', 'cumulative': True}})
-    views.append({'type': 'chart', 'title': 'Budget: AuM at the EoP vs Budget BRLmn', 'params': {'df': df_aum, 'categoria': 'AuM at the EoP'}})
-    views.append({'type': 'chart', 'title': 'Budget: Revenues - Net of ECL vs Budget BRLmn', 'params': {'df': df_budg, 'categoria': 'Revenues - Net of ECL'}})
-    views.append({'type': 'chart', 'title': 'Budget: PROFIT BEFORE TAX vs Budget BRLmn', 'params': {'df': df_budg, 'categoria': 'PROFIT BEFORE TAX'}})
-    views.append({'type': 'okr_summary', 'title': 'Overall OKR Summary', 'params': {'df_okrs': df_okrs}})
+    views.append({'type': 'chart', 'title': 'AuM (BRL)', 'params': {'df': df_aum, 'categoria': 'AuM at the EoP'}})
+    views.append({'type': 'chart', 'title': 'Revenues (BRL)', 'params': {'df': df_budg, 'categoria': 'Revenues - Net of ECL'}})
+    views.append({'type': 'chart', 'title': 'Profit (BRL)', 'params': {'df': df_budg, 'categoria': 'PROFIT BEFORE TAX'}})
         
     if 'view_index' not in st.session_state:
         st.session_state.view_index = 0
@@ -244,11 +211,8 @@ def page_tv_mode():
             st.title(current_view['title'])
             unique_key = f"tv_view_{st.session_state.view_index}_{iteration_counter}"
             
-            if current_view['type'] == 'chart':
-                is_cumulative = current_view['params'].get('cumulative', False)
-                bar_compare(df=current_view['params']['df'], categoria=current_view['params']['categoria'], key=unique_key, cumulative=is_cumulative)
-            elif current_view['type'] == 'okr_summary':
-                display_okr_summary_view(df_okrs=current_view['params']['df_okrs'])
+            is_cumulative = current_view['params'].get('cumulative', False)
+            bar_compare(df=current_view['params']['df'], categoria=current_view['params']['categoria'], title="", key=unique_key, cumulative=is_cumulative)
 
         st.session_state.view_index = (st.session_state.view_index + 1) % len(views)
         iteration_counter += 1
@@ -258,11 +222,6 @@ def page_tv_mode():
 # ===================================================================
 # MAIN NAVIGATION STRUCTURE
 # ===================================================================
-PAGES = {
-    "Main Dashboard": page_dashboard,
-    "OKRs Tracking": page_okrs,
-}
-
 if "tv_mode_on" not in st.session_state:
     st.session_state.tv_mode_on = False
 
@@ -270,11 +229,9 @@ if st.session_state.tv_mode_on:
     page_tv_mode()
 else:
     st.sidebar.title("Navigation")
-    selection = st.sidebar.radio("Go to", list(PAGES.keys()))
 
     if st.sidebar.button("▶️ Start TV Mode"):
         st.session_state.tv_mode_on = True
         st.rerun()
     
-    page_function = PAGES[selection]
-    page_function()
+    page_dashboard()
