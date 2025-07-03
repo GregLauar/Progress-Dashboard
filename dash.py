@@ -50,10 +50,12 @@ def display_logo(width=150):
         st.warning(f"Logo file '{LOGO_FILE}' not found. Please place it in the same folder as the script.")
 
 # === VISUALIZATION FUNCTIONS ===
-def format_number(num):
+# === VISUALIZATION FUNCTIONS ===
+# <<< MUDANÇA: A função agora aceita um parâmetro 'decimals' para controlar o arredondamento >>>
+def format_number(num, decimals=1):
     """Formats a number into a compact string (e.g., 1.5M, 500K)."""
     if abs(num) >= 1_000_000:
-        return f'{num / 1_000_000:.1f}M'
+        return f'{num / 1_000_000:.{decimals}f}M'
     if abs(num) >= 1_000:
         return f'{num / 1_000:.0f}K'
     return f'{num:.0f}'
@@ -69,29 +71,53 @@ def bar_compare(df, categoria, title="", key=None, cumulative=False):
         actual_data = actual_data.cumsum()
         forecast_data = forecast_data.cumsum()
 
+    # <<< MUDANÇA: Define a precisão dos decimais com base na categoria do gráfico >>>
+    # AuM terá 0 casas decimais, os outros terão 1.
+    decimals = 0 if categoria == "AuM at the EoP" else 1
+
     fig = go.Figure()
     
     if not actual_data.empty:
-        actual_text = [format_number(x) for x in actual_data]
+        actual_text = [format_number(x, decimals=decimals) for x in actual_data]
         fig.add_trace(go.Bar(x=actual_data.index, y=actual_data, name="Actual", marker_color="steelblue", text=actual_text, textposition='inside'))
     
     if not forecast_data.empty:
-        forecast_text = [format_number(x) for x in forecast_data]
+        forecast_text = [format_number(x, decimals=decimals) for x in forecast_data]
         fig.add_trace(go.Bar(x=forecast_data.index, y=forecast_data, name="Forecast", marker_color="lightblue", text=forecast_text, textposition='inside'))
     
     if not budget_data.empty:
-        fig.add_trace(go.Scatter(x=budget_data.index, y=budget_data, mode="lines", name="Budget", line=dict(color="black", width=2, dash="dash")))
+        fig.add_trace(go.Scatter(
+            x=budget_data.index, 
+            y=budget_data, 
+            mode="lines", 
+            name="Budget", 
+            line=dict(color="black", width=2, dash="dash")
+        ))
+        
+        for date, value in budget_data.items():
+            fig.add_annotation(
+                x=date,
+                y=value,
+                text=format_number(value, decimals=decimals), # Usa a precisão definida
+                showarrow=False,
+                yshift=15,
+                font=dict(
+                    color="black",
+                    size=12
+                ),
+                bgcolor="rgba(255, 255, 255, 0.6)",
+                borderpad=2
+            )
     
     fig.update_layout(
         title=title, 
         barmode="overlay", 
-        xaxis_title="", 
-        yaxis_title="", 
-        xaxis=dict(tickformat="%b/%y"), 
+        xaxis_title="Month", 
+        xaxis=dict(tickformat="%b/%y", showgrid=False),
+        yaxis=dict(visible=False, showgrid=False),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     
-    # <<< MUDANÇA: O seletor garante que o estilo de texto seja aplicado APENAS aos gráficos de barra. >>>
     fig.update_traces(textangle=0, insidetextanchor='middle', textfont=dict(color='white', size=14), selector=dict(type='bar'))
     st.plotly_chart(fig, use_container_width=True, key=key)
 
@@ -114,9 +140,9 @@ def page_dashboard():
     st.subheader("🔹 Income Statement Statistics")
     c5, c6 = st.columns(2)
     with c5:
-        bar_compare(df_budg, "Revenues - Net of ECL", "Revenues (BRL)", key="dash_revenues")
+        bar_compare(df_budg, "Revenues - Net of ECL", "Revenues inc. CDBs (BRL)", key="dash_revenues")
     with c6:
-        bar_compare(df_budg, "PROFIT BEFORE TAX", "Profit (BRL)", key="dash_pbt")
+        bar_compare(df_budg, "PROFIT BEFORE TAX", "Profit Before Taxes (BRL)", key="dash_pbt")
 
 # ===================================================================
 # "TV MODE" PAGE (IMMERSIVE VERSION)
@@ -195,8 +221,8 @@ def page_tv_mode():
     
     views = []
     views.append({'type': 'chart', 'title': 'AuM (BRL)', 'params': {'df': df_aum, 'categoria': 'AuM at the EoP'}})
-    views.append({'type': 'chart', 'title': 'Revenues (BRL)', 'params': {'df': df_budg, 'categoria': 'Revenues - Net of ECL'}})
-    views.append({'type': 'chart', 'title': 'Profit (BRL)', 'params': {'df': df_budg, 'categoria': 'PROFIT BEFORE TAX'}})
+    views.append({'type': 'chart', 'title': 'Revenues inc. CDBs (BRL)', 'params': {'df': df_budg, 'categoria': 'Revenues - Net of ECL'}})
+    views.append({'type': 'chart', 'title': 'Profit Before Taxes (BRL)', 'params': {'df': df_budg, 'categoria': 'PROFIT BEFORE TAX'}})
         
     if 'view_index' not in st.session_state:
         st.session_state.view_index = 0
@@ -235,3 +261,4 @@ else:
         st.rerun()
     
     page_dashboard()
+
